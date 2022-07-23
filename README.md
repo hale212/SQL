@@ -1,2 +1,2 @@
-# Data-Science
-Introduction to Data Science
+# SQL
+Expore dataset "superstore" (from Tableau)
