@@ -1,0 +1,179 @@
+#Count number of columns
+SELECT COUNT(*) AS number_of_columns
+FROM information_schema.columns
+WHERE table_name="superstore"
+;
+
+#Count number of rows
+SELECT COUNT(*) AS number_of_rows
+FROM superstore
+;
+
+#View raw data
+SELECT *
+FROM superstore
+LIMIT 10
+;
+
+#Data type of each column
+SELECT column_name, data_type
+FROM information_schema.COLUMNS 
+WHERE table_schema = "superstore_sales" and table_name = "superstore"
+;
+
+#Summarizing sales in 2017
+SELECT COUNT(sales)
+,SUM(sales) 
+,AVG(sales) 
+,STDDEV(sales) 
+,MIN(sales) 
+,MAX(sales) 
+FROM superstore
+WHERE order_date BETWEEN "2017-01-01" AND "2017-12-31"
+;
+
+
+# Frequencies of each category in 2017
+#By category
+SELECT category, count(customer_id) as customers
+FROM superstore
+WHERE order_date BETWEEN "2017-01-01" AND "2017-12-31"
+GROUP BY 1
+ORDER BY 2 DESC
+;
+#By segment
+SELECT segment, count(customer_id) as customers
+FROM superstore
+WHERE order_date BETWEEN "2017-01-01" AND "2017-12-31"
+GROUP BY 1
+ORDER BY 2 DESC
+;
+
+#Total sales for each category from 2014-2017
+SELECT EXTRACT(YEAR FROM order_date) AS year_,
+category, 
+SUM(sales) as total_sales
+FROM superstore
+GROUP BY 1,2
+ORDER BY 1
+;
+
+
+#Check duplicate
+SELECT order_date, customer_name, product_name, sales, COUNT(*) AS records
+FROM superstore
+GROUP BY 1,2,3,4
+HAVING records > 1
+;
+
+#Total orders based on first and last order date for specific customer  
+SELECT customer_name
+,min(order_date) as first_order_date
+,max(order_date) as last_order_date
+,count(*) as total_orders
+FROM superstore
+WHERE customer_name="Laurel Beltran"
+GROUP BY customer_id
+;
+
+
+#Check null values
+SELECT *
+FROM superstore
+WHERE category IS NULL
+;
+
+#Pivotting - Total sales per customer
+SELECT customer_id
+,round(sum(sales),2) as total_sales
+FROM superstore
+GROUP BY 1
+;
+
+
+#Trend of yearly total Technology category sales
+SELECT EXTRACT(YEAR FROM order_date) AS sales_year
+,ROUND(SUM(sales),2) AS sales
+FROM superstore
+GROUP BY 1
+ORDER BY 1
+;
+
+
+#Compare total sales by category
+SELECT EXTRACT(YEAR FROM order_date) as sales_year
+,ROUND(SUM(CASE WHEN category = 'Furniture'THEN sales END)) AS furniture_sales
+,ROUND(SUM(CASE WHEN category = 'Office Supplies'THEN sales END)) AS Officesupplies_sales
+,ROUND(SUM(CASE WHEN category = 'Technology' THEN sales END)) AS technology_sales
+FROM superstore
+GROUP BY 1
+ORDER BY 1
+;
+
+#Sales month-to-date
+SELECT DATE_FORMAT(order_date, "%m-%Y") AS sales_month, sales
+,ROUND(SUM(sales) OVER (PARTITION BY EXTRACT(YEAR FROM order_date)
+ORDER BY order_date),2) AS sales_mtd
+FROM superstore
+WHERE category = "Technology" AND YEAR(order_date)="2017"
+GROUP BY 1
+ORDER BY 1
+;
+
+#Sales month-over-month (MoM)
+SELECT category,sales_month, sales
+,LAG(sales_month) OVER (PARTITION BY category
+ORDER BY sales_month) AS prev_month
+,LAG(sales) OVER (PARTITION BY category
+ORDER BY sales_month) AS prev_month_sales
+FROM (
+SELECT *, DATE_FORMAT(order_date, "%m-%Y") AS sales_month
+FROM superstore) a
+WHERE category = "Technology" 
+GROUP BY 2
+ORDER BY 1
+;
+
+#Cohort Analysis
+#Survivorship
+SELECT first_year
+,COUNT(DISTINCT customer_name) as cohort_size
+,COUNT(DISTINCT CASE WHEN survival_time >=0 THEN customer_name
+end) as survived
+,COUNT(DISTINCT CASE WHEN survival_time >=0 THEN customer_name end)/ COUNT(DISTINCT customer_name) AS pct_survived
+FROM 
+(
+SELECT customer_name
+,EXTRACT(YEAR FROM MIN(order_date)) AS first_year
+,MIN(order_date) AS first_term
+,MAX(order_date) AS last_term
+,EXTRACT(YEAR FROM (MAX(order_date)-MIN(order_date))) AS survival_time
+FROM superstore
+GROUP BY 1
+) a
+GROUP BY 1
+;
+
+# KPI by category and region if sales 2017 increase more than 10% compare with sales 2016
+SELECT category
+,region
+, CASE WHEN sales_2017/sales_2016 >1.10 THEN "Achieved"
+ELSE "Not_Achieved" END AS KPI
+FROM (
+SELECT *
+,ROUND(SUM(CASE WHEN YEAR(order_date)="2016" THEN sales END)) AS sales_2016
+,ROUND(SUM(CASE WHEN YEAR(order_date)="2017" THEN sales END)) AS sales_2017
+FROM superstore
+GROUP BY region, category) a
+ORDER BY 1,2
+;
+
+#Compare sales of 2016 and 2017
+SELECT category, region, sub_category
+,ROUND(SUM(CASE WHEN YEAR(order_date)="2016" THEN sales END)) AS sales_2016
+,ROUND(SUM(CASE WHEN YEAR(order_date)="2017" THEN sales END)) AS sales_2017
+FROM superstore
+GROUP BY 1,2,3
+ORDER BY 1,2,3
+;
+
