@@ -1,2 +1,2 @@
 # SQL
-Expore dataset "superstore" (from Tableau)
+Expore dataset "superstore" (Source: Tableau)
